@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import connection from "./connections";
+import connection from "./connection";
 
 const {
   getMusics,
@@ -8,7 +8,13 @@ const {
   findMusicById,
   addMusic,
 } = require("./musics/functionsMusics");
-const { getAlbuns, searchAlbumsByName } = require("./albuns/functionsAlbuns");
+
+const {
+  getAlbuns,
+  searchAlbumsByName,
+  getAlbunsMusics,
+} = require("./albuns/functionsAlbuns");
+
 const { searchArtistsByName } = require("./artists/functionsArtists");
 
 const app = express();
@@ -52,7 +58,7 @@ app.put("/musics/:id", async (req, res) => {
 });
 
 app.post("/musics", async (req, res) => {
-  const { idmusic, namemusic, genremusic,duration, idalbum } = req.body;
+  const { idmusic, namemusic, genremusic, duration, idalbum } = req.body;
   try {
     await addMusic(idmusic, namemusic, genremusic, duration, idalbum);
     res.send(`Musica ${namemusic} adicionada com sucesso!`);
@@ -62,16 +68,26 @@ app.post("/musics", async (req, res) => {
 });
 
 //post para fazer login
-//get para buscar token
+
+app.get("/:id/music", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const AlbunsMusics = await getAlbunsMusics();
+    if (!AlbunsMusics) {
+      throw new Error("Album não encontrado");
+    }
+    res.status(200).json(AlbunsMusics);
+  } catch (error) {
+    res.status(500).json({ message: `Erro ao buscar o album`, error });
+  }
+});
 
 app.get("/musics/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const findMusicsId = await findMusicById();
+    const findMusicsId = await findMusicById(id);
     if (!findMusicsId) {
-      return res
-        .status(404)
-        .json({ message: `Música com id ${id} não encontrada` });
+      throw new Error(`Música com id ${id} não encontrada`);
     }
     res.status(200).json(findMusicsId);
   } catch (error) {
@@ -80,12 +96,10 @@ app.get("/musics/:id", async (req, res) => {
 });
 
 app.get("/search", async (req, res) => {
+  const name = req.query.name?.toString().toLowerCase();
   try {
-    const name = req.query.name?.toString().toLowerCase();
     if (!name) {
-      return res
-        .status(400)
-        .json({ message: 'O parâmetro de busca "name" é obrigatório.' });
+      throw new Error('O parâmetro de busca "name" é obrigatório.');
     }
 
     const [musics, albums, artists] = await Promise.all([
@@ -95,9 +109,7 @@ app.get("/search", async (req, res) => {
     ]);
 
     if (!musics.length && !albums.length && !artists.length) {
-      return res
-        .status(404)
-        .json({ message: "Nenhuma música, álbum ou artista foi encontrada." });
+      throw new Error("Nenhuma música, álbum ou artista foi encontrada.");
     }
 
     res.status(200).json({ musics, albums, artists });
@@ -112,9 +124,7 @@ app.get("/albuns", async (req, res) => {
   const result = await getAlbuns();
   try {
     if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Não há playlists disponíveis no momento." });
+      throw new Error("Não há playlists disponíveis no momento.");
     }
     res.send(result);
   } catch (error) {
@@ -126,9 +136,7 @@ app.get("/musics", async (req, res) => {
   const result = await getMusics();
   try {
     if (result.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Não há músicas disponíveis no momento." });
+      throw new Error("Não há músicas disponíveis no momento.");
     }
     res.send(result);
   } catch (error) {
