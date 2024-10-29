@@ -1,5 +1,5 @@
 import { v7 } from "uuid";
 
-const generatedId = (): string =>{
+export const generatedId = (): string =>{
     return v7()
 }
